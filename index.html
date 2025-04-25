@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Controle de Horas Extras</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .admin-section {
+            background-color: #fff9e6;
+        }
+        .hidden {
+            display: none;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .login-form {
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        .status-servico { background-color: #ffcccc; }
+        .status-baixada { background-color: #ccffcc; }
+        .status-dispensada { background-color: #ccccff; }
+        .logout-btn {
+            background-color: #f44336;
+            float: right;
+        }
+        .search-box {
+            margin: 15px 0;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .pagination button {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sistema de Controle de Horas Extras</h1>
+        
+        <!-- Área de Login -->
+        <div id="login-section" class="section">
+            <h2>Login</h2>
+            <div class="login-form">
+                <input type="password" id="admin-password" placeholder="Senha de Administrador">
+                <button onclick="login()">Entrar</button>
+            </div>
+        </div>
+        
+        <!-- Área do Usuário -->
+        <div id="user-section" class="section">
+            <h2>Controle de Horas Extras</h2>
+            
+            <div class="search-box">
+                <input type="text" id="user-search" placeholder="Pesquisar militar..." oninput="filterMilitary()">
+            </div>
+            
+            <table id="military-list">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Horas Extras</th>
+                        <th>Dispensas</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            
+            <div class="pagination" id="pagination">
+                <button onclick="prevPage()">Anterior</button>
+                <span id="page-info">Página 1</span>
+                <button onclick="nextPage()">Próxima</button>
+            </div>
+        </div>
+        
+        <!-- Área do Administrador (oculta inicialmente) -->
+        <div id="admin-section" class="section admin-section hidden">
+            <button class="logout-btn" onclick="logout()">Sair do Modo Admin</button>
+            <h2>Área do Administrador</h2>
+            
+            <h3>Gerenciar Militares</h3>
+            <div>
+                <input type="text" id="new-person-name" placeholder="Nome do militar">
+                <button onclick="addPerson()">Adicionar Militar</button>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="admin-search" placeholder="Pesquisar militar..." oninput="filterAdminMilitary()">
+            </div>
+            
+            <table id="people-list">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Horas Extras</th>
+                        <th>Dispensas</th>
+                        <th>Status</th>
+                        <th>Último Trabalho</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            
+            <div class="pagination" id="admin-pagination">
+                <button onclick="prevAdminPage()">Anterior</button>
+                <span id="admin-page-info">Página 1</span>
+                <button onclick="nextAdminPage()">Próxima</button>
+            </div>
+            
+            <h3>Alterar Status</h3>
+            <div>
+                <select id="person-select"></select>
+                <select id="status-select">
+                    <option value="servico">De Serviço</option>
+                    <option value="baixada">Baixada</option>
+                    <option value="dispensada">Dispensada</option>
+                </select>
+                <input type="date" id="work-date">
+                <button onclick="updateStatus()">Atualizar Status</button>
+            </div>
+            
+            <h3>Histórico Completo</h3>
+            <table id="admin-history">
+                <thead>
+                    <tr>
+                        <th>Militar</th>
+                        <th>Data</th>
+                        <th>Evento</th>
+                        <th>Detalhes</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Configurações de paginação
+        const itemsPerPage = 20;
+        let currentPage = 1;
+        let adminCurrentPage = 1;
+        let filteredMilitary = [];
+        let filteredAdminMilitary = [];
+
+        // Dados iniciais (armazenados no localStorage)
+        let data = {
+            people: [],
+            adminPassword: "admin123" // Senha padrão - deve ser alterada
+        };
+
+        // Carregar dados ao iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            populateMilitaryList();
+        });
+
+        // Função para carregar dados do localStorage
+        function loadData() {
+            const savedData = localStorage.getItem('quartelHoursData');
+            if (savedData) {
+                data = JSON.parse(savedData);
+            } else {
+                // Dados de exemplo para teste (remover em produção)
+                data.people = [
+                    {id: '1', name: 'Militar Exemplo 1', extraHours: 5, dispensas: 2, status: 'servico', history: []},
+                    {id: '2', name: 'Militar Exemplo 2', extraHours: 10, dispensas: 1, status: 'baixada', history: []},
+                    {id: '3', name: 'Militar Exemplo 3', extraHours: 15, dispensas: 3, status: 'dispensada', history: []}
+                ];
+                saveData();
+            }
+        }
+
+        // Função para salvar dados no localStorage
+        function saveData() {
+            localStorage.setItem('quartelHoursData', JSON.stringify(data));
+        }
+
+        // Função para popular a lista de militares (visualização normal)
+        function populateMilitaryList() {
+            filteredMilitary = [...data.people];
+            updateMilitaryTable();
+        }
+
+        // Função para atualizar a tabela de militares
+        function updateMilitaryTable(page = currentPage) {
+            const table = document.getElementById('military-list').querySelector('tbody');
+            table.innerHTML = '';
+            
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginatedItems = filteredMilitary.slice(start, end);
+            
+            paginatedItems.forEach(person => {
+                const row = document.createElement('tr');
+                
+                // Aplicar classe de status
+                if (person.status === 'servico') row.classList.add('status-servico');
+                else if (person.status === 'baixada') row.classList.add('status-baixada');
+                else if (person.status === 'dispensada') row.classList.add('status-dispensada');
+                
+                row.innerHTML = `
+                    <td>${person.name}</td>
+                    <td>${person.extraHours || 0}</td>
+                    <td>${person.dispensas || 0}</td>
+                    <td>${getStatusName(person.status)}</td>
+                    <td>
+                        <button onclick="registrarHoras('${person.id}', 1)">+1 Hora</button>
+                        <button onclick="registrarHoras('${person.id}', 2)">+2 Horas</button>
+                        <button onclick="registrarHoras('${person.id}', 4)">+4 Horas</button>
+                    </td>
+                `;
+                table.appendChild(row);
+            });
+            
+            // Atualizar controles de paginação
+            document.getElementById('page-info').textContent = `Página ${page} de ${Math.ceil(filteredMilitary.length / itemsPerPage)}`;
+            currentPage = page;
+        }
+
+        // Função para filtrar militares
+        function filterMilitary() {
+            const searchTerm = document.getElementById('user-search').value.toLowerCase();
+            filteredMilitary = data.people.filter(person => 
+                person.name.toLowerCase().includes(searchTerm)
+            );
+            currentPage = 1;
+            updateMilitaryTable();
+        }
+
+        // Função para registrar horas extras
+        function registrarHoras(personId, hours) {
+            const person = data.people.find(p => p.id === personId);
+            
+            if (person) {
+                // Adicionar horas
+                person.extraHours = (person.extraHours || 0) + hours;
+                
+                // Verificar se atingiu 12 horas para ganhar dispensa
+                if (person.extraHours >= 12) {
+                    person.extraHours -= 12;
+                    person.dispensas = (person.dispensas || 0) + 1;
+                    
+                    // Registrar no histórico
+                    addHistoryEvent(person, 'dispensa_earned', `Ganhou 1 dispensa por acumular 12 horas extras. Restam ${person.extraHours} horas.`);
+                }
+                
+                // Registrar no histórico
+                addHistoryEvent(person, 'hour_add', `Adicionadas ${hours} horas extras. Total: ${person.extraHours} horas.`);
+                
+                // Atualizar exibição e salvar
+                updateMilitaryTable(currentPage);
+                saveData();
+                
+                alert(`${hours} horas extras registradas para ${person.name}!`);
+            } else {
+                alert('Militar não encontrado.');
+            }
+        }
+
+        // Função para adicionar evento ao histórico
+        function addHistoryEvent(person, type, details) {
+            if (!person.history) {
+                person.history = [];
+            }
+            
+            person.history.push({
+                date: new Date().toLocaleDateString('pt-BR'),
+                type: type,
+                details: details
+            });
+            
+            // Se estiver no modo admin, atualizar o histórico
+            if (!document.getElementById('admin-section').classList.contains('hidden')) {
+                updateAdminHistory();
+            }
+        }
+
+        // Função de login do administrador
+        function login() {
+            const password = document.getElementById('admin-password').value;
+            
+            if (password === data.adminPassword) {
+                document.getElementById('admin-section').classList.remove('hidden');
+                document.getElementById('user-section').classList.add('hidden');
+                document.getElementById('login-section').classList.add('hidden');
+                populateAdminPeopleList();
+                populatePersonSelect();
+                updateAdminHistory();
+            } else {
+                alert('Senha incorreta!');
+            }
+        }
+
+        // Função para sair do modo admin
+        function logout() {
+            document.getElementById('admin-section').classList.add('hidden');
+            document.getElementById('user-section').classList.remove('hidden');
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('admin-password').value = '';
+        }
+
+        // Função para popular a lista de militares na área admin
+        function populateAdminPeopleList() {
+            filteredAdminMilitary = [...data.people];
+            updateAdminPeopleTable();
+        }
+
+        // Função para atualizar a tabela de militares no admin
+        function updateAdminPeopleTable(page = adminCurrentPage) {
+            const table = document.getElementById('people-list').querySelector('tbody');
+            table.innerHTML = '';
+            
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginatedItems = filteredAdminMilitary.slice(start, end);
+            
+            paginatedItems.forEach(person => {
+                const row = document.createElement('tr');
+                
+                // Aplicar classe de status
+                if (person.status === 'servico') row.classList.add('status-servico');
+                else if (person.status === 'baixada') row.classList.add('status-baixada');
+                else if (person.status === 'dispensada') row.classList.add('status-dispensada');
+                
+                row.innerHTML = `
+                    <td>${person.name}</td>
+                    <td>${person.extraHours || 0}</td>
+                    <td>${person.dispensas || 0}</td>
+                    <td>${getStatusName(person.status)}</td>
+                    <td>${person.lastWorkDate || '-'}</td>
+                    <td>
+                        <button onclick="editPerson('${person.id}')">Editar</button>
+                        <button onclick="deletePerson('${person.id}')">Excluir</button>
+                        <button onclick="useDispensa('${person.id}')">Usar Dispensa</button>
+                    </td>
+                `;
+                table.appendChild(row);
+            });
+            
+            // Atualizar controles de paginação
+            document.getElementById('admin-page-info').textContent = `Página ${page} de ${Math.ceil(filteredAdminMilitary.length / itemsPerPage)}`;
+            adminCurrentPage = page;
+        }
+
+        // Função para filtrar militares no admin
+        function filterAdminMilitary() {
+            const searchTerm = document.getElementById('admin-search').value.toLowerCase();
+            filteredAdminMilitary = data.people.filter(person => 
+                person.name.toLowerCase().includes(searchTerm)
+            );
+            adminCurrentPage = 1;
+            updateAdminPeopleTable();
+        }
+
+        // Função auxiliar para obter nome do status
+        function getStatusName(status) {
+            switch(status) {
+                case 'servico': return 'De Serviço';
+                case 'baixada': return 'Baixada';
+                case 'dispensada': return 'Dispensada';
+                default: return 'Não definido';
+            }
+        }
+
+        // Função para popular o select de pessoas na área de status
+        function populatePersonSelect() {
+            const select = document.getElementById('person-select');
+            select.innerHTML = '';
+            
+            data.people.forEach(person => {
+                const option = document.createElement('option');
+                option.value = person.id;
+                option.textContent = person.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Função para adicionar novo militar
+        function addPerson() {
+            const name = document.getElementById('new-person-name').value.trim();
+            
+            if (name) {
+                const newPerson = {
+                    id: Date.now().toString(),
+                    name: name,
+                    extraHours: 0,
+                    dispensas: 0,
+                    status: '',
+                    history: []
+                };
+                
+                data.people.push(newPerson);
+                saveData();
+                
+                // Atualizar listas
+                populateMilitaryList();
+                populateAdminPeopleList();
+                populatePersonSelect();
+                
+                document.getElementById('new-person-name').value = '';
+                alert('Militar adicionado com sucesso!');
+            } else {
+                alert('Digite um nome válido.');
+            }
+        }
+
+        // Função para usar dispensa (no admin)
+        function useDispensa(personId) {
+            const person = data.people.find(p => p.id === personId);
+            
+            if (person) {
+                if (person.dispensas > 0) {
+                    person.dispensas -= 1;
+                    person.status = 'dispensada';
+                    
+                    // Registrar no histórico
+                    addHistoryEvent(person, 'dispensa_used', 'Utilizou 1 dispensa de 24 horas.');
+                    addHistoryEvent(person, 'status_change', 'Status alterado para Dispensada.');
+                    
+                    // Atualizar exibição e salvar
+                    updateAdminPeopleTable(adminCurrentPage);
+                    saveData();
+                    
+                    alert('Dispensa utilizada com sucesso! Status alterado para Dispensada.');
+                } else {
+                    alert('Este militar não tem dispensas disponíveis.');
+                }
+            } else {
+                alert('Militar não encontrado.');
+            }
+        }
+
+        // Função para atualizar status
+        function updateStatus() {
+            const personId = document.getElementById('person-select').value;
+            const status = document.getElementById('status-select').value;
+            const workDate = document.getElementById('work-date').value;
+            
+            const person = data.people.find(p => p.id === personId);
+            
+            if (person) {
+                person.status = status;
+                
+                if (workDate) {
+                    person.lastWorkDate = workDate;
+                }
+                
+                // Registrar no histórico
+                addHistoryEvent(person, 'status_change', `Status alterado para ${getStatusName(status)}.`);
+                
+                // Atualizar exibição e salvar
+                updateAdminPeopleTable(adminCurrentPage);
+                updateMilitaryTable(currentPage);
+                saveData();
+                
+                alert('Status atualizado com sucesso!');
+            } else {
+                alert('Selecione um militar válido.');
+            }
+        }
+
+        // Função para editar militar
+        function editPerson(id) {
+            const person = data.people.find(p => p.id === id);
+            if (person) {
+                const newName = prompt("Editar nome:", person.name);
+                if (newName && newName.trim() !== '') {
+                    person.name = newName.trim();
+                    saveData();
+                    updateAdminPeopleTable(adminCurrentPage);
+                    updateMilitaryTable(currentPage);
+                    populatePersonSelect();
+                }
+            }
+        }
+
+        // Função para excluir militar
+        function deletePerson(id) {
+            if (confirm('Tem certeza que deseja excluir este militar?')) {
+                data.people = data.people.filter(p => p.id !== id);
+                saveData();
+                updateAdminPeopleTable(adminCurrentPage);
+                updateMilitaryTable(currentPage);
+                populatePersonSelect();
+            }
+        }
+
+        // Função para atualizar o histórico no admin
+        function updateAdminHistory() {
+            const table = document.getElementById('admin-history').querySelector('tbody');
+            table.innerHTML = '';
+            
+            // Coletar todos os históricos
+            let allHistory = [];
+            data.people.forEach(person => {
+                if (person.history && person.history.length > 0) {
+                    person.history.forEach(event => {
+                        allHistory.push({
+                            personName: person.name,
+                            date: event.date,
+                            type: event.type,
+                            details: event.details
+                        });
+                    });
+                }
+            });
+            
+            // Ordenar por data (mais recente primeiro)
+            allHistory.sort((a, b) => new Date(b.date.split('/').reverse().join('-')) - new Date(a.date.split('/').reverse().join('-')));
+            
+            // Exibir os 100 mais recentes
+            const recentHistory = allHistory.slice(0, 100);
+            
+            recentHistory.forEach(event => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${event.personName}</td>
+                    <td>${event.date}</td>
+                    <td>${getEventName(event.type)}</td>
+                    <td>${event.details}</td>
+                `;
+                table.appendChild(row);
+            });
+        }
+
+        // Função auxiliar para obter o nome do evento
+        function getEventName(type) {
+            switch(type) {
+                case 'hour_add': return 'Horas adicionadas';
+                case 'status_change': return 'Mudança de status';
+                case 'dispensa_used': return 'Dispensa utilizada';
+                case 'dispensa_earned': return 'Dispensa ganha';
+                default: return type;
+            }
+        }
+
+        // Funções de paginação
+        function nextPage() {
+            const totalPages = Math.ceil(filteredMilitary.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                updateMilitaryTable(currentPage + 1);
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                updateMilitaryTable(currentPage - 1);
+            }
+        }
+
+        function nextAdminPage() {
+            const totalPages = Math.ceil(filteredAdminMilitary.length / itemsPerPage);
+            if (adminCurrentPage < totalPages) {
+                updateAdminPeopleTable(adminCurrentPage + 1);
+            }
+        }
+
+        function prevAdminPage() {
+            if (adminCurrentPage > 1) {
+                updateAdminPeopleTable(adminCurrentPage - 1);
+            }
+        }
+    </script>
+</body>
+</html>

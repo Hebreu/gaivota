@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Banco de Horas</title>
+    <title>Sistema de Controle de Horas Extras</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -93,6 +93,13 @@
         .pagination button {
             margin: 0 5px;
         }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .action-buttons button {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -108,7 +115,7 @@
             </div>
         </div>
         
-        <!-- Área do Usuário -->
+        <!-- Área de Visualização Comum -->
         <div id="user-section" class="section">
             <h2>Controle de Horas Extras</h2>
             
@@ -123,7 +130,6 @@
                         <th>Horas Extras</th>
                         <th>Dispensas</th>
                         <th>Status</th>
-                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -171,16 +177,23 @@
                 <button onclick="nextAdminPage()">Próxima</button>
             </div>
             
-            <h3>Alterar Status</h3>
+            <h3>Alterar Status e Horas</h3>
             <div>
                 <select id="person-select"></select>
-                <select id="status-select">
+                <select id="action-select">
+                    <option value="add_hours">Adicionar Horas</option>
+                    <option value="remove_hours">Remover Horas</option>
+                    <option value="change_status">Alterar Status</option>
+                    <option value="use_dispensa">Usar Dispensa</option>
+                </select>
+                <input type="number" id="hours-amount" placeholder="Quantidade de horas" min="1" class="hidden">
+                <select id="status-select" class="hidden">
                     <option value="servico">De Serviço</option>
                     <option value="baixada">Baixada</option>
                     <option value="dispensada">Dispensada</option>
                 </select>
-                <input type="date" id="work-date">
-                <button onclick="updateStatus()">Atualizar Status</button>
+                <input type="date" id="work-date" class="hidden">
+                <button onclick="performAction()">Executar Ação</button>
             </div>
             
             <h3>Histórico Completo</h3>
@@ -216,7 +229,25 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
             populateMilitaryList();
+            setupActionSelect();
         });
+
+        // Configurar o select de ações
+        function setupActionSelect() {
+            const actionSelect = document.getElementById('action-select');
+            actionSelect.addEventListener('change', function() {
+                document.getElementById('hours-amount').classList.add('hidden');
+                document.getElementById('status-select').classList.add('hidden');
+                document.getElementById('work-date').classList.add('hidden');
+                
+                if (this.value === 'add_hours' || this.value === 'remove_hours') {
+                    document.getElementById('hours-amount').classList.remove('hidden');
+                } else if (this.value === 'change_status') {
+                    document.getElementById('status-select').classList.remove('hidden');
+                    document.getElementById('work-date').classList.remove('hidden');
+                }
+            });
+        }
 
         // Função para carregar dados do localStorage
         function loadData() {
@@ -245,7 +276,7 @@
             updateMilitaryTable();
         }
 
-        // Função para atualizar a tabela de militares
+        // Função para atualizar a tabela de militares (visualização comum)
         function updateMilitaryTable(page = currentPage) {
             const table = document.getElementById('military-list').querySelector('tbody');
             table.innerHTML = '';
@@ -267,11 +298,6 @@
                     <td>${person.extraHours || 0}</td>
                     <td>${person.dispensas || 0}</td>
                     <td>${getStatusName(person.status)}</td>
-                    <td>
-                        <button onclick="registrarHoras('${person.id}', 1)">+1 Hora</button>
-                        <button onclick="registrarHoras('${person.id}', 2)">+2 Horas</button>
-                        <button onclick="registrarHoras('${person.id}', 4)">+4 Horas</button>
-                    </td>
                 `;
                 table.appendChild(row);
             });
@@ -281,7 +307,7 @@
             currentPage = page;
         }
 
-        // Função para filtrar militares
+        // Função para filtrar militares (visualização comum)
         function filterMilitary() {
             const searchTerm = document.getElementById('user-search').value.toLowerCase();
             filteredMilitary = data.people.filter(person => 
@@ -289,54 +315,6 @@
             );
             currentPage = 1;
             updateMilitaryTable();
-        }
-
-        // Função para registrar horas extras
-        function registrarHoras(personId, hours) {
-            const person = data.people.find(p => p.id === personId);
-            
-            if (person) {
-                // Adicionar horas
-                person.extraHours = (person.extraHours || 0) + hours;
-                
-                // Verificar se atingiu 12 horas para ganhar dispensa
-                if (person.extraHours >= 12) {
-                    person.extraHours -= 12;
-                    person.dispensas = (person.dispensas || 0) + 1;
-                    
-                    // Registrar no histórico
-                    addHistoryEvent(person, 'dispensa_earned', `Ganhou 1 dispensa por acumular 12 horas extras. Restam ${person.extraHours} horas.`);
-                }
-                
-                // Registrar no histórico
-                addHistoryEvent(person, 'hour_add', `Adicionadas ${hours} horas extras. Total: ${person.extraHours} horas.`);
-                
-                // Atualizar exibição e salvar
-                updateMilitaryTable(currentPage);
-                saveData();
-                
-                alert(`${hours} horas extras registradas para ${person.name}!`);
-            } else {
-                alert('Militar não encontrado.');
-            }
-        }
-
-        // Função para adicionar evento ao histórico
-        function addHistoryEvent(person, type, details) {
-            if (!person.history) {
-                person.history = [];
-            }
-            
-            person.history.push({
-                date: new Date().toLocaleDateString('pt-BR'),
-                type: type,
-                details: details
-            });
-            
-            // Se estiver no modo admin, atualizar o histórico
-            if (!document.getElementById('admin-section').classList.contains('hidden')) {
-                updateAdminHistory();
-            }
         }
 
         // Função de login do administrador
@@ -392,10 +370,9 @@
                     <td>${person.dispensas || 0}</td>
                     <td>${getStatusName(person.status)}</td>
                     <td>${person.lastWorkDate || '-'}</td>
-                    <td>
+                    <td class="action-buttons">
                         <button onclick="editPerson('${person.id}')">Editar</button>
                         <button onclick="deletePerson('${person.id}')">Excluir</button>
-                        <button onclick="useDispensa('${person.id}')">Usar Dispensa</button>
                     </td>
                 `;
                 table.appendChild(row);
@@ -439,6 +416,120 @@
             });
         }
 
+        // Função para executar ações no admin
+        function performAction() {
+            const personId = document.getElementById('person-select').value;
+            const action = document.getElementById('action-select').value;
+            const person = data.people.find(p => p.id === personId);
+            
+            if (!person) {
+                alert('Selecione um militar válido.');
+                return;
+            }
+            
+            switch(action) {
+                case 'add_hours':
+                    const hoursToAdd = parseInt(document.getElementById('hours-amount').value);
+                    if (hoursToAdd > 0) {
+                        addHours(person, hoursToAdd);
+                    } else {
+                        alert('Digite um valor válido de horas.');
+                    }
+                    break;
+                    
+                case 'remove_hours':
+                    const hoursToRemove = parseInt(document.getElementById('hours-amount').value);
+                    if (hoursToRemove > 0 && hoursToRemove <= person.extraHours) {
+                        removeHours(person, hoursToRemove);
+                    } else {
+                        alert('Digite um valor válido de horas para remover.');
+                    }
+                    break;
+                    
+                case 'change_status':
+                    const status = document.getElementById('status-select').value;
+                    const workDate = document.getElementById('work-date').value;
+                    changeStatus(person, status, workDate);
+                    break;
+                    
+                case 'use_dispensa':
+                    useDispensa(person);
+                    break;
+            }
+        }
+
+        // Função para adicionar horas
+        function addHours(person, hours) {
+            person.extraHours = (person.extraHours || 0) + hours;
+            
+            // Verificar se atingiu 12 horas para ganhar dispensa
+            if (person.extraHours >= 12) {
+                const dispensasGanhas = Math.floor(person.extraHours / 12);
+                person.extraHours %= 12;
+                person.dispensas = (person.dispensas || 0) + dispensasGanhas;
+                
+                addHistoryEvent(person, 'dispensa_earned', `Ganhou ${dispensasGanhas} dispensa(s) por acumular horas extras. Restam ${person.extraHours} horas.`);
+            }
+            
+            addHistoryEvent(person, 'hour_add', `Adicionadas ${hours} horas extras. Total: ${person.extraHours} horas.`);
+            
+            updateAdminPeopleTable(adminCurrentPage);
+            updateMilitaryTable(currentPage);
+            saveData();
+            
+            alert(`${hours} horas extras adicionadas para ${person.name}!`);
+        }
+
+        // Função para remover horas
+        function removeHours(person, hours) {
+            person.extraHours -= hours;
+            if (person.extraHours < 0) person.extraHours = 0;
+            
+            addHistoryEvent(person, 'hour_remove', `Removidas ${hours} horas extras. Total: ${person.extraHours} horas.`);
+            
+            updateAdminPeopleTable(adminCurrentPage);
+            updateMilitaryTable(currentPage);
+            saveData();
+            
+            alert(`${hours} horas extras removidas de ${person.name}!`);
+        }
+
+        // Função para alterar status
+        function changeStatus(person, status, workDate) {
+            person.status = status;
+            
+            if (workDate) {
+                person.lastWorkDate = workDate;
+            }
+            
+            addHistoryEvent(person, 'status_change', `Status alterado para ${getStatusName(status)}.`);
+            
+            updateAdminPeopleTable(adminCurrentPage);
+            updateMilitaryTable(currentPage);
+            saveData();
+            
+            alert(`Status de ${person.name} atualizado para ${getStatusName(status)}!`);
+        }
+
+        // Função para usar dispensa
+        function useDispensa(person) {
+            if (person.dispensas > 0) {
+                person.dispensas -= 1;
+                person.status = 'dispensada';
+                
+                addHistoryEvent(person, 'dispensa_used', 'Utilizou 1 dispensa de 24 horas.');
+                addHistoryEvent(person, 'status_change', 'Status alterado para Dispensada.');
+                
+                updateAdminPeopleTable(adminCurrentPage);
+                updateMilitaryTable(currentPage);
+                saveData();
+                
+                alert(`${person.name} utilizou 1 dispensa! Status alterado para Dispensada.`);
+            } else {
+                alert('Este militar não tem dispensas disponíveis.');
+            }
+        }
+
         // Função para adicionar novo militar
         function addPerson() {
             const name = document.getElementById('new-person-name').value.trim();
@@ -456,7 +547,6 @@
                 data.people.push(newPerson);
                 saveData();
                 
-                // Atualizar listas
                 populateMilitaryList();
                 populateAdminPeopleList();
                 populatePersonSelect();
@@ -468,59 +558,19 @@
             }
         }
 
-        // Função para usar dispensa (no admin)
-        function useDispensa(personId) {
-            const person = data.people.find(p => p.id === personId);
-            
-            if (person) {
-                if (person.dispensas > 0) {
-                    person.dispensas -= 1;
-                    person.status = 'dispensada';
-                    
-                    // Registrar no histórico
-                    addHistoryEvent(person, 'dispensa_used', 'Utilizou 1 dispensa de 24 horas.');
-                    addHistoryEvent(person, 'status_change', 'Status alterado para Dispensada.');
-                    
-                    // Atualizar exibição e salvar
-                    updateAdminPeopleTable(adminCurrentPage);
-                    saveData();
-                    
-                    alert('Dispensa utilizada com sucesso! Status alterado para Dispensada.');
-                } else {
-                    alert('Este militar não tem dispensas disponíveis.');
-                }
-            } else {
-                alert('Militar não encontrado.');
+        // Função para adicionar evento ao histórico
+        function addHistoryEvent(person, type, details) {
+            if (!person.history) {
+                person.history = [];
             }
-        }
-
-        // Função para atualizar status
-        function updateStatus() {
-            const personId = document.getElementById('person-select').value;
-            const status = document.getElementById('status-select').value;
-            const workDate = document.getElementById('work-date').value;
             
-            const person = data.people.find(p => p.id === personId);
+            person.history.push({
+                date: new Date().toLocaleDateString('pt-BR'),
+                type: type,
+                details: details
+            });
             
-            if (person) {
-                person.status = status;
-                
-                if (workDate) {
-                    person.lastWorkDate = workDate;
-                }
-                
-                // Registrar no histórico
-                addHistoryEvent(person, 'status_change', `Status alterado para ${getStatusName(status)}.`);
-                
-                // Atualizar exibição e salvar
-                updateAdminPeopleTable(adminCurrentPage);
-                updateMilitaryTable(currentPage);
-                saveData();
-                
-                alert('Status atualizado com sucesso!');
-            } else {
-                alert('Selecione um militar válido.');
-            }
+            updateAdminHistory();
         }
 
         // Função para editar militar
@@ -591,6 +641,7 @@
         function getEventName(type) {
             switch(type) {
                 case 'hour_add': return 'Horas adicionadas';
+                case 'hour_remove': return 'Horas removidas';
                 case 'status_change': return 'Mudança de status';
                 case 'dispensa_used': return 'Dispensa utilizada';
                 case 'dispensa_earned': return 'Dispensa ganha';
